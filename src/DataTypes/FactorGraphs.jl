@@ -43,6 +43,7 @@ struct FactorGraph
     variables::Vector{VariableNode}
     factors::Vector{FactorNode}
     function FactorGraph(vars,factors)
+        # Adds neighbors to variables
         for factor in factors
             for v in factor.neighbors
                 push!(v.neighbors,factor)
