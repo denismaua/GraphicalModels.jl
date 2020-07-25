@@ -1,6 +1,6 @@
 module GraphicalModels
 
 # Include Data Types
-include("DataTypes/FactorGraphs.jl")
+include("Models/FactorGraphs.jl")
 
 end

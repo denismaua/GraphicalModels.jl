@@ -1,8 +1,15 @@
 # Implemens Factor Graphics data type
 export 
+    Variable,
     VariableNode,
     FactorNode,
     FactorGraph
+
+"A Discrete Variable."
+struct Variable
+    id::Int
+    dimension::UInt # no. of values
+end
 
 "A node of a Factor Graph."
 abstract type FGNode end
@@ -14,7 +21,7 @@ Represents a variable node.
 - `neighbors`: adjacent factor nodes
 """
 struct VariableNode <: FGNode
-    variable::Int
+    variable::Variable
     neighbors::Vector{FGNode}  
     VariableNode(v) = new(v,FactorNode[])  
 end
@@ -30,6 +37,9 @@ struct FactorNode <: FGNode
     neighbors::Vector{VariableNode}
     function FactorNode(f,ne)
         @assert ndims(f) == length(ne)
+        for (i,d) in enumerate(size(f))
+            @assert d == ne[i].variable.dimension
+        end
         new(f,ne)
     end
 end
