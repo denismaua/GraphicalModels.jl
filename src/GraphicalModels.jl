@@ -1,5 +1,6 @@
 module GraphicalModels
 
-# Write your package code here.
+# Include Data Types
+include("DataTypes/FactorGraphs.jl")
 
 end
