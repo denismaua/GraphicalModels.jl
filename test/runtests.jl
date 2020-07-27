@@ -1,4 +1,5 @@
 using GraphicalModels
+import GraphicalModels: BeliefPropagation, update!
 using Test
 
 @testset "FactorGraph" begin
@@ -18,4 +19,17 @@ using Test
             println("\t", f.factor)
         end
     end
+    # Run belief propagation
+    bp = BeliefPropagation(fg)
+   
+    for ((from,to),μ) in bp.messages
+        println(typeof(from), "->", typeof(to), ": ", μ)
+    end
+    println()
+    update!(bp)
+    println()
+    for ((from,to),μ) in bp.messages
+        println(typeof(from), "->", typeof(to), ": ", μ)
+    end
+
 end

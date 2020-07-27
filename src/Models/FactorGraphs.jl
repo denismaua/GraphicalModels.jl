@@ -10,6 +10,8 @@ struct Variable
     id::Int
     dimension::UInt # no. of values
 end
+"Returns the number of values of the variable."
+Base.length(v::Variable) = v.dimension
 
 "A node of a Factor Graph."
 abstract type FGNode end
@@ -36,6 +38,7 @@ struct FactorNode <: FGNode
     factor::AbstractArray
     neighbors::Vector{VariableNode}
     function FactorNode(f,ne)
+        # consistency checks
         @assert ndims(f) == length(ne)
         for (i,d) in enumerate(size(f))
             @assert d == ne[i].variable.dimension
