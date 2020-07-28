@@ -1,5 +1,5 @@
 using GraphicalModels
-import GraphicalModels: BeliefPropagation, update!
+import GraphicalModels: BeliefPropagation, update!, marginal
 using Test
 
 @testset "FactorGraph" begin
@@ -22,14 +22,29 @@ using Test
     # Run belief propagation
     bp = BeliefPropagation(fg)
    
-    for ((from,to),μ) in bp.messages
-        println(typeof(from), "->", typeof(to), ": ", μ)
-    end
-    println()
-    update!(bp)
-    println()
-    for ((from,to),μ) in bp.messages
-        println(typeof(from), "->", typeof(to), ": ", μ)
-    end
+    for i=1:4
+        # for ((from,to),μ) in bp.messages
+        #     println(typeof(from), "->", typeof(to), ": ", μ)
+        # end
+        println(i)
+        for X in (X1,X2,X3,X4)
+            println(X.variable, " ", marginal(X,bp))
+        end
+        update!(bp)
 
+    end
+    println()
+    for ((from,to),μ) in bp.messages
+        println(typeof(from), "->", typeof(to), ": ", μ)
+    end
+    # check marginals
+    marginals = Dict(
+        X1 => [0.48, 0.52],
+        X2 => [0.26, 0.74],
+        X3 => [0.4, 0.6],
+        X4 => [0.6, 0.4]
+        )
+    for (X,m) in marginals
+        @test m ≈ marginal(X,bp)
+    end
 end

@@ -23,29 +23,41 @@ end
 
 "Update belief propagation message from variable to factor node."
 function update!(bp::BeliefPropagation, from::VariableNode, to::FactorNode)
-    fill!(bp.messages[from,to],1.0)
+    μ = bp.messages[from,to]
+    fill!(μ,1.0)
+    # compute product of incoming messages
     for factor in from.neighbors
         if factor ≠ to
-            bp.messages[from,to] .*= bp.messages[factor,from]
+            μ .*= bp.messages[factor,from]
         end
     end    
-    bp.messages[from,to]
+    μ
 end
 
-"Update belief propagation message from factor to variable node."
-function update!(bp::BeliefPropagation, from::FactorNode, to::VariableNode)
-    fill!(bp.messages[from,to],1.0)
-    for variable in from.neighbors
-        if variable ≠ to
-            #TODO!
-            bp.messages[from,to] .*= bp.messages[factor,from]
-        end
+"Update belief propagation message from factor to its ith neighbor."
+function update!(bp::BeliefPropagation, from::FactorNode, to::Integer)
+# function update!(bp::BeliefPropagation, from::FactorNode, to::VariableNode)
+    # fill!(bp.messages[from,to],0.0)
+    μ = bp.messages[from,from.neighbors[to]]
+    fill!(μ,0.0)
+    # collect incoming messages
+    μ_in = [ bp.messages[ne,from] for ne in from.neighbors ]
+    # ignore message from destination
+    μ_in[to] .= 1.0 
+    # compute product of incoming messages and factor, and sum-out destination variable
+    for x in CartesianIndices(axes(from.factor))
+        μ[x[to]] += from.factor[x] * mapreduce(p -> p[2][x[p[1]]], *, enumerate(μ_in))    # mapreduce( pair -> pair[1] == to ? 1.0 : bp.messages[pair[2],from][x[pair[1]]], *, enumerate(from.neighbors))
     end    
-    bp.messages[from,to]
+    μ
 end
 
-"Computes belief propagation messages for each edge in factor graph."
+"Compute belief propagation messages for each edge in factor graph."
 function update!(bp::BeliefPropagation)
+    # compute messages from factor to variable
+    for f in bp.fg.factors, i in eachindex(f.neighbors)
+        update!(bp,f,i)
+    end
+    # compute messages from factors to variables
     for v in bp.fg.variables, f in v.neighbors
         update!(bp,v,f)
     end
@@ -55,7 +67,13 @@ function update!(bp::BeliefPropagation)
     nothing
 end
 
-# extract all marginals from belief propagation
-function allmarginals(mp::BeliefPropagation)
-    1.0
+"Compute marginal distribution of given variable node from belief propagation messages."
+function marginal(var::VariableNode, bp::BeliefPropagation)
+    marginal = ones(length(var.variable))
+    # multiply incoming messages
+    for factor in var.neighbors
+        marginal .*= bp.messages[factor,var]
+    end
+    # then normalize vector
+    marginal ./= sum(marginal)
 end
