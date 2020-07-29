@@ -38,7 +38,7 @@ using Test
             X3 => [0.4, 0.6],
             X4 => [0.6, 0.4]
             )
-        for (X,m) in marginals
+        @testset "Checking marginal for $(X.variable)" for (X,m) in marginals
             @test m ≈ marginal(X,bp)
         end
     end # end of Bayesian Tree testset
@@ -78,10 +78,6 @@ using Test
         #     end
         # end
         for i=1:4
-            # println(i)
-            # for X in (X1,X2,X3,X4)
-            #     println(X.variable, " ", marginal(X,bp))
-            # end
             update!(bp)
         end   
         # check marginals
@@ -91,7 +87,7 @@ using Test
             X3 => [0.6521808124773303, 0.34781918752266955],
             X4 => [0.4260745375408052, 0.5739254624591947]
         )
-        for (X,m) in marginals
+        @testset "Checking marginal of $(X.variable)" for (X,m) in marginals
             @test m ≈ marginal(X,bp)
         end
     end # end of Markov tree testset
@@ -110,10 +106,6 @@ using Test
         bp = BeliefPropagation(fg)    
         # Run belief propagation for succificient number of iterations
         for i=1:4
-            # println(i)
-            # for X in (X1,X2,X3,X4)
-            #     println(X.variable, " ", marginal(X,bp))
-            # end
             update!(bp)
         end
         # check marginals
@@ -123,7 +115,7 @@ using Test
             X3 => [0.6521808124773303, 0.34781918752266955],
             X4 => [0.4260745375408052, 0.5739254624591947]
         )    
-        for (X,m) in marginals
+        @testset "Checking marginal for $(X.variable)" for (X,m) in marginals
             @test m ≈ marginal(X,bp)
         end    
     end # end of testset Easy Loopy
