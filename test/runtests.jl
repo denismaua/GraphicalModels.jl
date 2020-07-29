@@ -91,7 +91,7 @@ using Test
             @test m ≈ marginal(X,bp)
         end
     end # end of Markov tree testset
-    @testset "Approximate Inference in Tree-Decomposable Loopy Graph" begin
+    @testset "Exact Inference in Tree-Decomposable Loopy Graph" begin
         X1 = VariableNode(Variable(1,2))
         X2 = VariableNode(Variable(2,2))
         X3 = VariableNode(Variable(3,2))
@@ -119,4 +119,48 @@ using Test
             @test m ≈ marginal(X,bp)
         end    
     end # end of testset Easy Loopy
+    @testset "Approximate Inference in Tree-Decomposable Loopy Graph" begin
+        X1 = VariableNode(Variable(1,2))
+        X2 = VariableNode(Variable(2,2))
+        X3 = VariableNode(Variable(3,2))
+        X4 = VariableNode(Variable(4,2))
+        f12 = FactorNode([10 0.1; 0.1 10], VariableNode[X1, X2]) # phi(X1,X2)
+        f13 = FactorNode([5 0.2; 0.2 5], VariableNode[X1, X3]) # phi(X1,X3) = phi(X1)*phi(X3) of previous test
+        f24 = FactorNode([5 0.2; 0.2 5], VariableNode[X2, X4]) # phi(X2,X4)
+        f34 = FactorNode([0.5 20; 1 2.5], VariableNode[X3, X4]) # phi(X3,X4)
+        # Creates factor graph (adds neighbor links to variables)
+        fg = FactorGraph([X1,X2,X3,X4],[f12,f13,f24,f34])
+        # Ground truth
+        marginals = Dict(
+            X1 => [0.315508859965501, 0.684491140034499],
+            X2 => [0.2767759134389211, 0.7232240865610788],
+            X3 => [0.4699342689875072, 0.5300657310124928],
+            X4 => [0.1207170299513878, 0.8792829700486121]
+        )    
+        # Initialize belief progation messages
+        bp = BeliefPropagation(fg)    
+        # Run belief propagation for succificient number of iterations
+        for i=1:100
+            update!(bp)
+            # compute mean absolute error
+            mae = 0.0
+            for X in fg.variables
+                mae += mapreduce(abs,+,marginal(X,bp) .- marginals[X])/2
+            end
+            @info "$i  MAE: $(mae/4)" maxlog=10
+        end
+        # MAE should be small
+        mae = 0.0
+        for X in fg.variables
+            mae += mapreduce(abs,+,marginal(X,bp) .- marginals[X])/2
+        end
+        mae = mae/4
+        @test mae < 0.11
+        # check marginals
+        # @testset "Checking marginal for $(X.variable)" for (X,m) in marginals
+        #     @test m ≈ marginal(X,bp)
+        # end    
+        # log partition
+        # Z = 1224.384
+    end # end of testset Hard Loopy    
 end # end of testset BeliefPropagation
