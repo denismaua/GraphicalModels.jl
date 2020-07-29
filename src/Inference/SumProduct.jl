@@ -40,13 +40,12 @@ function update!(bp::BeliefPropagation, from::FactorNode, to::Integer)
     # fill!(bp.messages[from,to],0.0)
     μ = bp.messages[from,from.neighbors[to]]
     fill!(μ,0.0)
-    # collect incoming messages
-    μ_in = [ bp.messages[ne,from] for ne in from.neighbors ]
-    # ignore message from destination
-    μ_in[to] .= 1.0 
+    # collect incoming messages other than from destination
+    μ_in = [ i == to ? ones(length(from.neighbors[to].variable)) : bp.messages[from.neighbors[i],from] for i=1:length(from.neighbors) ]
     # compute product of incoming messages and factor, and sum-out destination variable
     for x in CartesianIndices(axes(from.factor))
-        μ[x[to]] += from.factor[x] * mapreduce(p -> p[2][x[p[1]]], *, enumerate(μ_in))    # mapreduce( pair -> pair[1] == to ? 1.0 : bp.messages[pair[2],from][x[pair[1]]], *, enumerate(from.neighbors))
+        μ[x[to]] += from.factor[x] * mapreduce(p -> p[2][x[p[1]]], *, enumerate(μ_in))    
+        #μ[x[to]] += from.factor[x] * mapreduce( pair -> pair[1] == to ? 1.0 : bp.messages[pair[2],from][x[pair[1]]], *, enumerate(from.neighbors))
     end    
     μ
 end
@@ -64,7 +63,7 @@ function update!(bp::BeliefPropagation)
 # for ((from,to),μ) in bp.messages
     #     println(typeof(from), "->", typeof(to), ": ", μ)
     # end    
-    nothing
+    bp.iterations += 1
 end
 
 "Compute marginal distribution of given variable node from belief propagation messages."
