@@ -9,10 +9,10 @@ using Test
         X3 = VariableNode(Variable(3,2))
         X2 = VariableNode(Variable(2,2))
         X1 = VariableNode(Variable(1,2))
-        f1 = FactorNode([0.3 0.6; 0.7 0.4], VariableNode[X1, X3]) # P(X1|X3)
-        f2 = FactorNode([0.5 0.1; 0.5 0.9], VariableNode[X2, X3]) # P(X2|X3)
-        f3 = FactorNode([0.2 0.7; 0.8 0.3], VariableNode[X3, X4]) # P(X3|X4)
-        f4 = FactorNode([0.6, 0.4], [X4]) # P(X4)
+        f1 = FactorNode(log.([0.3 0.6; 0.7 0.4]), VariableNode[X1, X3]) # P(X1|X3)
+        f2 = FactorNode(log.([0.5 0.1; 0.5 0.9]), VariableNode[X2, X3]) # P(X2|X3)
+        f3 = FactorNode(log.([0.2 0.7; 0.8 0.3]), VariableNode[X3, X4]) # P(X3|X4)
+        f4 = FactorNode(log.([0.6, 0.4]), [X4]) # P(X4)
         # Creates factor graph (adds neighbor links to variables)
         fg = FactorGraph([X1,X2,X3,X4],[f1,f2,f3,f4])
         # for v in fg.variables
@@ -47,11 +47,11 @@ using Test
         X2 = VariableNode(Variable(2,2))
         X3 = VariableNode(Variable(3,2))
         X4 = VariableNode(Variable(4,2))
-        f12 = FactorNode([10.0 0.1; 0.1 10.0], VariableNode[X1, X2]) # phi(X1,X2)
-        f1 = FactorNode([5.0, 0.2], VariableNode[X1]) # phi(X1)
-        f3 = FactorNode([1.0, 1.0], VariableNode[X3]) # phi(X3)
-        f24 = FactorNode([5.0 0.2; 0.2 5.0], VariableNode[X2, X4]) # phi(X2,X4)
-        f34 = FactorNode([0.5 20.0; 1.0 2.5], VariableNode[X3, X4]) # phi(X3,X4)
+        f12 = FactorNode(log.([10.0 0.1; 0.1 10.0]), VariableNode[X1, X2]) # phi(X1,X2)
+        f1 = FactorNode(log.([5.0, 0.2]), VariableNode[X1]) # phi(X1)
+        f3 = FactorNode(log.([1.0, 1.0]), VariableNode[X3]) # phi(X3)
+        f24 = FactorNode(log.([5.0 0.2; 0.2 5.0]), VariableNode[X2, X4]) # phi(X2,X4)
+        f34 = FactorNode(log.([0.5 20.0; 1.0 2.5]), VariableNode[X3, X4]) # phi(X3,X4)
         # Creates factor graph (adds neighbor links to variables)
         fg = FactorGraph([X1,X2,X3,X4],[f12,f1,f3,f24,f34])
         # Initialize belief progation messages
@@ -96,10 +96,10 @@ using Test
         X2 = VariableNode(Variable(2,2))
         X3 = VariableNode(Variable(3,2))
         X4 = VariableNode(Variable(4,2))
-        f12 = FactorNode([10 0.1; 0.1 10], VariableNode[X1, X2]) # phi(X1,X2)
-        f13 = FactorNode([5 5; 0.2 0.2], VariableNode[X1, X3]) # phi(X1,X3) = phi(X1)*phi(X3) of previous test
-        f24 = FactorNode([5 0.2; 0.2 5], VariableNode[X2, X4]) # phi(X2,X4)
-        f34 = FactorNode([0.5 20; 1 2.5], VariableNode[X3, X4]) # phi(X3,X4)
+        f12 = FactorNode(log.([10 0.1; 0.1 10]), VariableNode[X1, X2]) # phi(X1,X2)
+        f13 = FactorNode(log.([5 5; 0.2 0.2]), VariableNode[X1, X3]) # phi(X1,X3) = phi(X1)*phi(X3) of previous test
+        f24 = FactorNode(log.([5 0.2; 0.2 5]), VariableNode[X2, X4]) # phi(X2,X4)
+        f34 = FactorNode(log.([0.5 20; 1 2.5]), VariableNode[X3, X4]) # phi(X3,X4)
         # Creates factor graph (adds neighbor links to variables)
         fg = FactorGraph([X1,X2,X3,X4],[f12,f13,f24,f34])
         # Initialize belief progation messages
@@ -124,10 +124,10 @@ using Test
         X2 = VariableNode(Variable(2,2))
         X3 = VariableNode(Variable(3,2))
         X4 = VariableNode(Variable(4,2))
-        f12 = FactorNode([10 0.1; 0.1 10], VariableNode[X1, X2]) # phi(X1,X2)
-        f13 = FactorNode([5 0.2; 0.2 5], VariableNode[X1, X3]) # phi(X1,X3) = phi(X1)*phi(X3) of previous test
-        f24 = FactorNode([5 0.2; 0.2 5], VariableNode[X2, X4]) # phi(X2,X4)
-        f34 = FactorNode([0.5 20; 1 2.5], VariableNode[X3, X4]) # phi(X3,X4)
+        f12 = FactorNode(log.([10 0.1; 0.1 10]), VariableNode[X1, X2]) # phi(X1,X2)
+        f13 = FactorNode(log.([5 0.2; 0.2 5]), VariableNode[X1, X3]) # phi(X1,X3) = phi(X1)*phi(X3) of previous test
+        f24 = FactorNode(log.([5 0.2; 0.2 5]), VariableNode[X2, X4]) # phi(X2,X4)
+        f34 = FactorNode(log.([0.5 20; 1 2.5]), VariableNode[X3, X4]) # phi(X3,X4)
         # Creates factor graph (adds neighbor links to variables)
         fg = FactorGraph([X1,X2,X3,X4],[f12,f13,f24,f34])
         # Ground truth
