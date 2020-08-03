@@ -1,4 +1,5 @@
 module GraphicalModels
+import Random
 
 # Include Data Types
 include("Models/FactorGraphs.jl")

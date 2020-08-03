@@ -26,6 +26,7 @@ using Test
         # Run belief propagation for succificient number of iterations
         while update!(bp) > 1e-10 end
         @info "converged in $(bp.iterations) iterations."
+        @test bp.iterations < 10
             # println(i)
             # for X in (X1,X2,X3,X4)
             #     println(X.variable, " ", marginal(X,bp))
@@ -78,6 +79,7 @@ using Test
         # end
         while (update!(bp) > 1e-10) end
         @info "converged in $(bp.iterations) iterations."
+        @test bp.iterations < 10
         # for i=1:4
         #     update!(bp)
         # end   
@@ -108,10 +110,6 @@ using Test
         # Run belief propagation for succificient number of iterations
         while (update!(bp) > 1e-10 && bp.iterations < 10) nothing end
         @info "converged in $(bp.iterations) iterations."
-            # @info "iteration $i residual: $(update!(bp))"
-            # println("f13 -> $(X1.variable): ", exp.(bp.messages[f13,X1]))
-            # println("$(X3.variable) -> f13: ", exp.(bp.messages[X3,f13]))
-        
         # check marginals
         marginals = Dict(
             X1 => [0.7440152339499456, 0.25598476605005444],
@@ -145,13 +143,15 @@ using Test
         bp = BeliefPropagation(fg)    
         # Run belief propagation for succificient number of iterations
         for i=1:100
-            @info "iteration $i residual: $(update!(bp))" maxlog=10
+            res = update!(bp)
             # compute mean absolute error
             mae = 0.0
             for X in fg.variables
                 mae += mapreduce(abs,+,marginal(X,bp) .- marginals[X])/2
             end
-            @info "$i  MAE: $(mae/4)" maxlog=10
+            @info "iteration $i \t residual: $(round(res;digits=6)) \t MAE: $(round(mae/4;digits=6)) \t P(X1=1): $(round(marginal(X1,bp)[1];digits=3)) [Exp: $(round(marginals[X1][1];digits=3))]" maxlog=20
+            if res < 1e-8 break end
+            bp.λ *= 0.99 # exponential decay (damping)
         end
         # MAE should be small
         mae = 0.0
@@ -159,7 +159,7 @@ using Test
             mae += mapreduce(abs,+,marginal(X,bp) .- marginals[X])/2
         end
         mae = mae/4
-        @info "100  MAE: $(mae)" maxlog=10
+        @info "$(bp.iterations)  MAE: $(mae) P(X1=1): $(round(marginal(X1,bp)[1];digits=3)) [Exp: $(round(marginals[X1][1];digits=3))]" maxlog=10
         @test mae < 0.15
         # check marginals
         # @testset "Checking marginal for $(X.variable)" for (X,m) in marginals

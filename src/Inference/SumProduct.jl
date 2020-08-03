@@ -98,16 +98,58 @@ end
 
 "Compute belief propagation messages for each edge in factor graph."
 function update!(bp::BeliefPropagation)
-    # compute messages from factor to variable
+    # synchronous belief propagation
+    # ## compute messages from factor to variable
+    # res = 0.0 # residual
+    # for f in bp.fg.factors, i in eachindex(f.neighbors)
+    #     res = max(res,update!(bp,f,i))
+    # end
+    # ## compute messages from factors to variables
+    # for v in bp.fg.variables, f in v.neighbors
+    #     res = max(res,update!(bp,v,f))
+    # end
+    # Asynchronous belief propagation
+    # Assumes graph is connected (will fail otherwise)
+    root = Random.rand(bp.fg.variables) # select root variable node at random
+    # update messages "away" from this node
+    frontier = FGNode[root]
+    visited = Set{FGNode}()
     res = 0.0 # residual
-    for f in bp.fg.factors, i in eachindex(f.neighbors)
-        res = max(res,update!(bp,f,i))
-    end
-    # compute messages from factors to variables
-    for v in bp.fg.variables, f in v.neighbors
-        res = max(res,update!(bp,v,f))
-    end
-# for ((from,to),μ) in bp.messages
+    while !isempty(frontier)
+        node = pop!(frontier)
+        push!(visited, node)
+        if isa(node,VariableNode)
+            for f in node.neighbors
+                res = max(res,update!(bp,node,f))
+                if !(f in visited) && !(f in frontier)
+                    push!(frontier, f)
+                end
+            end
+        else
+            for (i,v) in enumerate(node.neighbors)
+                res = max(res,update!(bp,node,i))
+                if !(v in visited) && !(v in frontier)
+                    push!(frontier, v)
+                end
+            end
+        end
+    end    
+    @assert length(visited) == length(bp.fg.variables) + length(bp.fg.factors)            
+    # # Random scheduling (should improve this)
+    # nodes = union(bp.fg.factors,bp.fg.variables)
+    # Random.shuffle!(nodes)
+    # for node in nodes
+    #     if isa(node,VariableNode)
+    #         for f in node.neighbors
+    #             res = max(res,update!(bp,node,f))
+    #         end
+    #     else
+    #         for i in eachindex(node.neighbors)
+    #             res = max(res,update!(bp,node,i))
+    #         end
+    #     end
+    # end 
+    # for ((from,to),μ) in bp.messages
     #     println(typeof(from), "->", typeof(to), ": ", μ)
     # end    
     bp.iterations += 1
