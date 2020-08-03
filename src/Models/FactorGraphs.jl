@@ -25,8 +25,9 @@ Represents a variable node.
 """
 struct VariableNode <: FGNode
     variable::Variable
-    neighbors::Vector{FGNode}  
-    VariableNode(v) = new(v,FactorNode[])  
+    neighbors::Vector{FGNode}
+    evidence::UInt  # 0 for no evidence or value ∈ [1,variable.dimension]
+    VariableNode(v) = new(v,FactorNode[], 0)  
 end
 """
 Representes a factor node.

@@ -24,13 +24,12 @@ using Test
         # Initialize belief progation messages
         bp = BeliefPropagation(fg)    
         # Run belief propagation for succificient number of iterations
-        for i=1:4
+        while update!(bp) > 1e-10 end
+        @info "converged in $(bp.iterations) iterations."
             # println(i)
             # for X in (X1,X2,X3,X4)
             #     println(X.variable, " ", marginal(X,bp))
             # end
-            update!(bp)
-        end
         # check marginals
         marginals = Dict(
             X1 => [0.48, 0.52],
@@ -77,9 +76,11 @@ using Test
         #         end
         #     end
         # end
-        for i=1:4
-            update!(bp)
-        end   
+        while (update!(bp) > 1e-10) end
+        @info "converged in $(bp.iterations) iterations."
+        # for i=1:4
+        #     update!(bp)
+        # end   
         # check marginals
         marginals = Dict(
             X1 => [0.7440152339499456, 0.25598476605005444],
@@ -105,9 +106,12 @@ using Test
         # Initialize belief progation messages
         bp = BeliefPropagation(fg)    
         # Run belief propagation for succificient number of iterations
-        for i=1:4
-            update!(bp)
-        end
+        while (update!(bp) > 1e-10 && bp.iterations < 10) nothing end
+        @info "converged in $(bp.iterations) iterations."
+            # @info "iteration $i residual: $(update!(bp))"
+            # println("f13 -> $(X1.variable): ", exp.(bp.messages[f13,X1]))
+            # println("$(X3.variable) -> f13: ", exp.(bp.messages[X3,f13]))
+        
         # check marginals
         marginals = Dict(
             X1 => [0.7440152339499456, 0.25598476605005444],
@@ -141,7 +145,7 @@ using Test
         bp = BeliefPropagation(fg)    
         # Run belief propagation for succificient number of iterations
         for i=1:100
-            update!(bp)
+            @info "iteration $i residual: $(update!(bp))" maxlog=10
             # compute mean absolute error
             mae = 0.0
             for X in fg.variables

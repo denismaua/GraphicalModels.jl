@@ -4,8 +4,8 @@ abstract type MessagePassingAlgorithm end
 "Data structure for sum-product belief propagation algorithm."
 mutable struct BeliefPropagation <: MessagePassingAlgorithm
     fg::FactorGraph
-    evidence::Dict{Int,UInt}
     iterations::Int
+    λ::Float64 # dampening factor ∈ [0,1]
     messages::Dict{Tuple{FGNode,FGNode},AbstractVector}
     "Initialize belief propagation with no evidence."
     function BeliefPropagation(fg::FactorGraph) 
@@ -19,13 +19,13 @@ mutable struct BeliefPropagation <: MessagePassingAlgorithm
             # μ[f,v] = ones(length(v.variable)) # linear domain
             μ[f,v] = zeros(length(v.variable)) # log domain
         end        
-        new(fg, Dict{Variable,UInt}(), 0, μ)
+        new(fg, 0, 1.0, μ)
     end
 end
 
-"Update belief propagation message from variable to factor node."
+"Update belief propagation message from variable to factor node. Returns residual."
 function update!(bp::BeliefPropagation, from::VariableNode, to::FactorNode)
-    μ = bp.messages[from,to]
+    μ = similar(bp.messages[from,to])
     # fill!(μ,1.0) # linear domain
     fill!(μ,0.0) # log domain
     # compute product of incoming messages
@@ -35,10 +35,17 @@ function update!(bp::BeliefPropagation, from::VariableNode, to::FactorNode)
             μ .+= bp.messages[factor,from] # log domain
         end
     end    
-    μ
+    # normalize message (make sum = 1)
+    μ .-= sum(μ)/length(μ)
+    # compute residual (in log domain, should we compute it in linear domain?)
+    # res = mapreduce(i ->  abs(bp.messages[from,to][i] - μ[i]), max, 1:length(μ)) # is this faster?
+    res = maximum(abs.(bp.messages[from,to].-μ)) # is this slower?
+    # damped update
+    @. bp.messages[from,to] = bp.λ*μ + (1.0-bp.λ)*bp.messages[from,to]
+    res
 end
 
-"Update belief propagation message from factor to its ith neighbor."
+"Update belief propagation message from factor to its ith neighbor. Returns residual"
 function update!(bp::BeliefPropagation, from::FactorNode, to::Integer)
     ϕ = copy(from.factor)
     dims = [ dim for dim in size(ϕ) ]
@@ -68,7 +75,14 @@ function update!(bp::BeliefPropagation, from::FactorNode, to::Integer)
         ϕ = m .+ log.(ψ)
     end
     @assert length(ϕ) == length(from.neighbors[to].variable) "Got: $(length(μ)) Exp: $(length(from.neighbors[to].variable))"
+    # normalize message (make sum equal to one)
+    ϕ .-= sum(ϕ)/length(ϕ)
+    # compute residual
+    res = maximum(abs.(bp.messages[from,from.neighbors[to]].-ϕ)) # is this slow?
+    # TODO: damped update
+    # @. bp.messages[from,from.neighbors[to]] = bp.λ*ϕ + (1.0-bp.λ)*bp.messages[from,from.neighbors[to]]
     bp.messages[from,from.neighbors[to]] .= ϕ
+    res
     # # linear domain
     # μ = bp.messages[from,from.neighbors[to]]
     # fill!(μ,0.0)
@@ -85,17 +99,19 @@ end
 "Compute belief propagation messages for each edge in factor graph."
 function update!(bp::BeliefPropagation)
     # compute messages from factor to variable
+    res = 0.0 # residual
     for f in bp.fg.factors, i in eachindex(f.neighbors)
-        update!(bp,f,i)
+        res = max(res,update!(bp,f,i))
     end
     # compute messages from factors to variables
     for v in bp.fg.variables, f in v.neighbors
-        update!(bp,v,f)
+        res = max(res,update!(bp,v,f))
     end
 # for ((from,to),μ) in bp.messages
     #     println(typeof(from), "->", typeof(to), ": ", μ)
     # end    
     bp.iterations += 1
+    res
 end
 
 "Compute marginal distribution of given variable node from belief propagation messages."
