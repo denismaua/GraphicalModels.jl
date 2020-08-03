@@ -147,9 +147,10 @@ using Test
             # compute mean absolute error
             mae = 0.0
             for X in fg.variables
-                mae += mapreduce(abs,+,marginal(X,bp) .- marginals[X])/2
+                mae += mapreduce(abs,+,marginal(X,bp) .- marginals[X])/2                
             end
-            @info "iteration $i \t residual: $(round(res;digits=6)) \t MAE: $(round(mae/4;digits=6)) \t P(X1=1): $(round(marginal(X1,bp)[1];digits=3)) [Exp: $(round(marginals[X1][1];digits=3))]" maxlog=20
+            probX1 = marginal(X1,bp)[1]
+            @info "iteration $i \t residual: $(round(res;digits=6)) \t MAE: $(round(mae/4;digits=6)) \t P(X1=1): $(round(probX1;digits=3)) [Error: $(probX1-marginals[X1][1])]" maxlog=20
             if res < 1e-8 break end
             bp.λ *= 0.99 # exponential decay (damping)
         end

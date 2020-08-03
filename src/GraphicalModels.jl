@@ -2,6 +2,7 @@ module GraphicalModels
 import Random
 
 # Include Data Types
+include("Models/Variables.jl")
 include("Models/FactorGraphs.jl")
 # Include Inference Algorithms
 include("Inference/SumProduct.jl")
