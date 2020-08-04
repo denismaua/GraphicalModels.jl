@@ -13,10 +13,10 @@ struct VariableNode <: FGNode
     # variable::Variable
     dimension::UInt # no. of values of variable
     neighbors::Vector{FGNode}
-    evidence::UInt  # 0 for no evidence or value ∈ [1,variable.dimension]
-    VariableNode(d::Integer) = new(d, FactorNode[], 0)  
-    VariableNode(v::Variable) = new(v.dimension, FactorNode[], 0)  
+    VariableNode(d::Integer) = new(d, FactorNode[])  
+    VariableNode(v::Variable) = new(v.dimension, FactorNode[])  
 end
+Base.show(io::IO,v::VariableNode) = print(io,"Variable(dim=$(v.dimension), degree=$(length(v.neighbors)))") 
 """
 Representes a factor node.
 

@@ -7,6 +7,7 @@ mutable struct BeliefPropagation <: MessagePassingAlgorithm
     iterations::Int
     λ::Float64 # dampening factor ∈ [0,1]
     messages::Dict{Tuple{FGNode,FGNode},AbstractVector}
+    evidence::Dict{VariableNode,UInt}
     "Initialize belief propagation with no evidence."
     function BeliefPropagation(fg::FactorGraph) 
         # initialize messages as vectos of ones
@@ -19,7 +20,7 @@ mutable struct BeliefPropagation <: MessagePassingAlgorithm
             # μ[f,v] = ones(length(v.variable)) # linear domain
             μ[f,v] = zeros(v.dimension) # log domain
         end        
-        new(fg, 0, 1.0, μ)
+        new(fg, 0, 1.0, μ, Dict{VariableNode,UInt}())
     end
 end
 
@@ -28,33 +29,40 @@ Base.setindex!(bp::BeliefPropagation, μ, from::FGNode, to::FGNode) = Base.setin
 
 "Update belief propagation message from variable to factor node. Returns residual."
 function update!(bp::BeliefPropagation, from::VariableNode, to::FactorNode)
-    μ = similar(bp[from,to])
     # fill!(μ,1.0) # linear domain
+    if haskey(bp.evidence,from) # variable is clamped, send indicator function
+        e = bp.evidence[from]
+        μ = bp[from,to]
+        fill!(μ,-Inf) # log domain
+        μ[e] = 0.0
+        return 0.0
+    end   
+    μ = similar(bp[from,to])
     fill!(μ,0.0) # log domain
-    if from.evidence > 0 # node is clamped at value from.evidence
-        # compute product of incoming messages
-        for factor in from.neighbors
-            if factor ≠ to
-                # μ_in = bp.messages[factor,from]
-                μ[from.evidence] += bp[from.evidence] # log domain
-            end
-        end    
-    else
-        # compute product of incoming messages
-        for factor in from.neighbors
-            if factor ≠ to
-                # μ .*= bp.messages[factor,from] # linear domain
-                μ .+= bp[factor,from] # log domain
-            end
-        end    
-    end
+    # compute product of incoming messages
+    for factor in from.neighbors
+        if factor ≠ to
+            # μ .*= bp.messages[factor,from] # linear domain
+            μ .+= bp[factor,from] # incoming message in log domain
+        end
+    end    
     # # normalize message (make sum = 1)
     # μ .-= sum(μ)/length(μ)
     # compute residual (in log domain, should we compute it in linear domain?)
     # res = mapreduce(i ->  abs(bp.messages[from,to][i] - μ[i]), max, 1:length(μ)) # is this faster?
-    res = maximum(abs.(bp[from,to].-μ)) # is this slower?
+    # res = maximum(abs.(bp[from,to].-μ)) # is this slower?
+    res = 0.0
+    ϕ = bp[from,to]
+    for i=1:length(μ)
+        if isfinite(μ[i]) && isfinite(ϕ[i])
+            res = max(res, abs(μ[i]-ϕ[i]))
+        else
+            res = max(res, max(μ[i], ϕ[i]))
+        end
+    end
     # damped update
-    @. bp[from,to] = bp.λ*μ + (1.0-bp.λ)*bp[from,to]
+    # @. bp[from,to] = bp.λ*μ + (1.0-bp.λ)*bp[from,to]
+    ϕ .= μ
     res
 end
 
@@ -89,12 +97,24 @@ function update!(bp::BeliefPropagation, from::FactorNode, to::Integer)
     end
     @assert length(ϕ) == from.neighbors[to].dimension "Got: $(length(ϕ)) Exp: $(from.neighbors[to].dimension)"
     # normalize message (make sum equal to one)
-    ϕ .-= sum(ϕ)/length(ϕ)
+    ϕ .-= sum(ϕ[isfinite.(ϕ)])/length(ϕ)
     # compute residual
-    res = maximum(abs.(bp[from,from.neighbors[to]].-ϕ)) # is this slow?
-    # TODO: damped update
-    # @. bp.messages[from,from.neighbors[to]] = bp.λ*ϕ + (1.0-bp.λ)*bp.messages[from,from.neighbors[to]]
-    bp[from,from.neighbors[to]] .= ϕ
+    # res = maximum(abs.(bp[from,from.neighbors[to]].-ϕ)) # is this slow?
+    μ = bp.messages[from,from.neighbors[to]]
+    res = 0.0
+    for i=1:length(μ)
+        if isfinite(μ[i]) && isfinite(ϕ[i])
+            res = max(res, abs(μ[i]-ϕ[i]))
+        else
+            res = max(res, max(μ[i], ϕ[i]))
+        end
+    end
+    if bp.λ < 1 # damped update
+        @. ϕ .= bp.λ*ϕ + (1.0-bp.λ)*μ
+    end
+    #ϕ[isnan.(ϕ)] .= -Inf
+    # @assert sum(isnan.(ϕ)) == 0
+    μ .= ϕ
     res
     # # linear domain
     # μ = bp.messages[from,from.neighbors[to]]
@@ -148,23 +168,6 @@ function update!(bp::BeliefPropagation)
         end
     end    
     @assert length(visited) == length(bp.fg.variables) + length(bp.fg.factors)            
-    # # Random scheduling (should improve this)
-    # nodes = union(bp.fg.factors,bp.fg.variables)
-    # Random.shuffle!(nodes)
-    # for node in nodes
-    #     if isa(node,VariableNode)
-    #         for f in node.neighbors
-    #             res = max(res,update!(bp,node,f))
-    #         end
-    #     else
-    #         for i in eachindex(node.neighbors)
-    #             res = max(res,update!(bp,node,i))
-    #         end
-    #     end
-    # end 
-    # for ((from,to),μ) in bp.messages
-    #     println(typeof(from), "->", typeof(to), ": ", μ)
-    # end    
     bp.iterations += 1
     res
 end
@@ -173,6 +176,10 @@ end
 function marginal(var::VariableNode, bp::BeliefPropagation)
     # marginal = ones(length(var.variable)) # linear domain
     marginal = zeros(var.dimension) # log domain
+    if haskey(bp.evidence, var)
+        marginal[bp.evidence[var]] = 1.0
+        return marginal
+    end 
     # multiply incoming messages
     for factor in var.neighbors
         # marginal .*= bp.messages[factor,var] # linear domain

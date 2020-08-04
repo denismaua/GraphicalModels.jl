@@ -39,6 +39,41 @@ using Test
             @test marginals[x] ≈ marginal(x,bp)
         end
     end # end of Bayesian Tree testset
+    @testset "Exact Inference in Bayes Tree with evidence" begin
+        # Tree-shaped factor graph
+        x4 = VariableNode(2)
+        x3 = VariableNode(2)
+        x2 = VariableNode(2)
+        x1 = VariableNode(2)
+        f1 = FactorNode(log.([0.3 0.6; 0.7 0.4]), VariableNode[x1, x3]) # P(X1|X3)
+        f2 = FactorNode(log.([0.5 0.1; 0.5 0.9]), VariableNode[x2, x3]) # P(X2|X3)
+        f3 = FactorNode(log.([0.2 0.7; 0.8 0.3]), VariableNode[x3, x4]) # P(X3|X4)
+        f4 = FactorNode(log.([0.6, 0.4]), VariableNode[x4]) # P(X4)
+        # Creates factor graph (adds neighbor links to variables)
+        fg = FactorGraph(
+            Dict( "X1" => x1, "X2" => x2, "X3" => x3, "X4" => x4 ),
+            Dict( "P(X1|X3)" => f1, "P(X2|X3)" => f2, "P(X3|X4)" => f3, "P(X4)" => f4 )
+        )
+        # Initialize belief progation messages
+        bp = BeliefPropagation(fg)  
+        # Set some evidence
+        bp.evidence[x1] = 1
+        bp.evidence[x2] = 2
+        # Run belief propagation for until convergence
+        while update!(bp) > 1e-10 end
+        @info "converged in $(bp.iterations) iterations."
+        @test bp.iterations < 10        
+        marginals = Dict(
+            x1 => [1.0, 0.0],
+            x2 => [0.0, 1.0],
+            x3 => [0.15625, 0.84375],
+            x4 => [0.721875, 0.278125]
+        )        
+        @testset "Checking marginal for $i" for (i,x) in fg.variables
+            @test marginals[x] ≈ marginal(x,bp)
+            # println( "P($i) = $(marginal(x,bp))" )
+        end
+    end
     @testset "Exact Inference in Markov Trees" begin
         x1 = VariableNode(2)
         x2 = VariableNode(2)
