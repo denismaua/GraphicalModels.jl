@@ -27,6 +27,11 @@ end
 Base.getindex(bp::BeliefPropagation, from::FGNode, to::FGNode) = Base.getindex(bp.messages, (from,to))
 Base.setindex!(bp::BeliefPropagation, μ, from::FGNode, to::FGNode) = Base.setindex!(bp.messages, μ, (from,to))
 
+"Set evidence value on variable identified by id."
+setevidence!(bp, id, value) = bp.evidence[bp.fg.variables[id]] = value
+"Removes evidence from variable identified by id."
+rmevidence!(bp, id) = delete!(bp.evidence,id)
+
 "Update belief propagation message from variable to factor node. Returns residual."
 function update!(bp::BeliefPropagation, from::VariableNode, to::FactorNode)
     # fill!(μ,1.0) # linear domain
@@ -110,7 +115,7 @@ function update!(bp::BeliefPropagation, from::FactorNode, to::Integer)
         end
     end
     if bp.λ < 1 # damped update
-        @. ϕ .= bp.λ*ϕ + (1.0-bp.λ)*μ
+        @. ϕ = bp.λ*ϕ + (1.0-bp.λ)*μ
     end
     #ϕ[isnan.(ϕ)] .= -Inf
     # @assert sum(isnan.(ϕ)) == 0
@@ -145,7 +150,9 @@ function update!(bp::BeliefPropagation)
     # Assumes graph is connected (will fail otherwise)
     root = Random.rand(collect(values(bp.fg.variables))) # select root variable node at random
     # update messages "away" from this node
-    frontier = FGNode[root]
+    # frontier = FGNode[root] #uncomment for depth-first traversal
+    frontier = Set{FGNode}()
+    push!(frontier,root)
     visited = Set{FGNode}()
     res = 0.0 # residual
     while !isempty(frontier)
@@ -173,6 +180,7 @@ function update!(bp::BeliefPropagation)
 end
 
 "Compute marginal distribution of given variable node from belief propagation messages."
+marginal(id::String, bp::BeliefPropagation) = marginal(bp.fg.variables[id], bp)
 function marginal(var::VariableNode, bp::BeliefPropagation)
     # marginal = ones(length(var.variable)) # linear domain
     marginal = zeros(var.dimension) # log domain
