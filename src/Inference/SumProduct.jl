@@ -28,9 +28,18 @@ Base.getindex(bp::BeliefPropagation, from::FGNode, to::FGNode) = Base.getindex(b
 Base.setindex!(bp::BeliefPropagation, μ, from::FGNode, to::FGNode) = Base.setindex!(bp.messages, μ, (from,to))
 
 "Set evidence value on variable identified by id."
-setevidence!(bp, id, value) = bp.evidence[bp.fg.variables[id]] = value
+setevidence!(bp::BeliefPropagation, id::String, value) = bp.evidence[bp.fg.variables[id]] = value
 "Removes evidence from variable identified by id."
-rmevidence!(bp, id) = delete!(bp.evidence,id)
+rmevidence!(bp::BeliefPropagation, id::String) = delete!(bp.evidence,id)
+
+"Removes any evidence and resets messages to their initial values (equal to zero for log-domain)."
+function reset!(bp::BeliefPropagation) 
+    empty!(bp.evidence)
+    for μ in values(bp.messages)
+        fill!(μ, 0.0)
+    end
+    nothing
+end
 
 "Update belief propagation message from variable to factor node. Returns residual."
 function update!(bp::BeliefPropagation, from::VariableNode, to::FactorNode)

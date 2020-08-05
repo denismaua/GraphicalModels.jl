@@ -75,8 +75,14 @@ fg = FactorGraph("test/markov.uai")
 # Initialize belief progation messages
 bp = BeliefPropagation(fg)
 # Run belief propagation for until convergence
-while update!(bp) > 1e-10 end
-@info "converged in $(bp.iterations) iterations."
+while True
+    res = update!(bp) # update all messages, returns maximum change (residual)
+    @info "Residual: $res"
+    if res < 1e-6  # convergence tolerance
+        break
+    end
+end
+@info "Converged in $(bp.iterations) iterations."
 # Now compute marginal for variable Y
 @show marginal("1", bp)
 # Alternatively, we can use marginal(fg.variables["1"], bp)

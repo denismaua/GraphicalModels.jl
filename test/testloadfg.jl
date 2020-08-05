@@ -18,7 +18,7 @@
         end
     end
     @testset "Loading more complex model from file" begin
-        import GraphicalModels: BeliefPropagation, update!, marginal, setevidence!
+        import GraphicalModels: BeliefPropagation, update!, marginal, setevidence!, reset!
         # load cyclic model
         fg = FactorGraph(normpath("$(@__DIR__)/example.uai"))  
         @test length(fg.variables) == 17
@@ -26,10 +26,17 @@
         bp = BeliefPropagation(fg)    
         setevidence!(bp,"0",1)
         setevidence!(bp,"1",1)
-        while update!(bp) > 1e-10 && bp.iterations < 10 
-            @info marginal("16",bp)
+        while update!(bp) > 1e-10 && bp.iterations < 30 
+            # @info marginal("16",bp)
         end
-        @info "finished in $(bp.iterations) iterations."
+        # @info "finished in $(bp.iterations) iterations."
         @test marginal("16",bp) ≈ [0.7, 0.3]
-    end
+        reset!(bp)
+        setevidence!(bp,"0",2)
+        setevidence!(bp,"1",1)
+        while update!(bp) > 1e-10 && bp.iterations < 30
+            # @info marginal("16",bp)
+        end
+        # @info "finished in $(bp.iterations) iterations."
+        @test marginal("16",bp) ≈ [0.6, 0.4]    end
 end

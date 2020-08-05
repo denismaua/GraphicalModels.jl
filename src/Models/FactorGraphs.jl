@@ -112,6 +112,7 @@ function FactorGraph(io::IO=stdin)
             elseif state == "numvars"
                 numvars = parse(Int,line)
                 # @info "$numvars variables."
+                sizehint!(vars,numvars)
                 state = "numstates"
             elseif state == "numstates"
                 fields = split(line)
@@ -121,6 +122,7 @@ function FactorGraph(io::IO=stdin)
                 state = "numfactors"
             elseif state == "numfactors"
                 numfactors = parse(Int,line)
+                sizehint!(factors,numfactors)
                 # @info "$numfactors factors."
                 state = "scopes"
             elseif state == "scopes"
@@ -138,17 +140,18 @@ function FactorGraph(io::IO=stdin)
                 fields = split(line)
                 i = 1
                 if szfactor == 0
-                    szfactor = parse(Int,fields[1]) # no. of values in scope                
+                    szfactor = parse(Int,fields[1]) # no. of values in scope            
                     @assert szfactor == length(factors[string(nfread)].factor)
+                    sizehint!(factor,szfactor)
                     i = 2
                 end                
                 append!(factor, parse.(Float64,fields[i:end]))
-                if szfactor == length(factor) # enf of factor values
+                if szfactor == length(factor) # end of factor values
                     ϕ = factors[string(nfread)]
                     rfdims = Tuple(v.dimension for v in Iterators.reverse(ϕ.neighbors))
                     ϕ.factor .= log.(permutedims(reshape(factor,rfdims), ndims(ϕ.factor):-1:1 ))
                     # @info nfread ϕ.factor
-                    factor = Float64[]
+                    factor = empty(factor)
                     szfactor = 0                   
                     nfread += 1
                     if nfread == numfactors
