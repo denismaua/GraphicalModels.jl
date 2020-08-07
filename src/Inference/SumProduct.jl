@@ -75,7 +75,8 @@ function update!(bp::BeliefPropagation, from::FactorNode, to::Integer)
         # sum-product: ψ(y) = ∑x ϕ(x,y) * μ(x)
         ψ = Array{Float64}(undef,dims...)
         for y in CartesianIndices(axes(ψ)) #, x = 1:dim
-            ψ[y] = m + log(sum(x -> exp(ϕ[x,y] + μ[x] - m), 1:dim))
+            # ψ[y] = m + log(sum(x -> exp(ϕ[x,y] + μ[x] - m), 1:dim))
+            ψ[y] = log(sum(x -> exp(ϕ[x,y] + μ[x] - m), 1:dim)) # subtracting m acts as normlizing constant
         end
         ϕ = ψ
         # ϕ = m .+ log.(ψ)
@@ -88,13 +89,14 @@ function update!(bp::BeliefPropagation, from::FactorNode, to::Integer)
         # sum-product: ψ(x) = ∑y ϕ(x,y) * μ(y)
         ψ = Array{Float64}(undef,dims...)
         for x in CartesianIndices(axes(ψ)) #, y = 1:dim
-            ψ[x] = m + log(sum(y -> exp(ϕ[x,y] + μ[y] - m), 1:dim))
+            # ψ[x] = m + log(sum(y -> exp(ϕ[x,y] + μ[y] - m), 1:dim))
+            ψ[x] = log(sum(y -> exp(ϕ[x,y] + μ[y] - m), 1:dim)) # subtracting m acts as normlizing constant
         end
-        ϕ = ψ #  m .+ log.(ψ)
+        ϕ = ψ 
     end
     @assert length(ϕ) == from.neighbors[to].dimension "Got: $(length(ϕ)) Exp: $(from.neighbors[to].dimension)"
-    # normalize message (make sum equal to one)
-    ϕ .-= sum(ϕ[isfinite.(ϕ)])/length(ϕ)
+    # normalize message (make sum of finite terms equal to zero)
+    # ϕ .-= sum(ϕ[isfinite.(ϕ)])/length(ϕ)
     # compute residual
     # res = maximum(abs.(bp[from,from.neighbors[to]].-ϕ)) # is this slow?
     μ = bp.messages[from,from.neighbors[to]]

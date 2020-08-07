@@ -56,6 +56,7 @@ function update!(bp::HybridBeliefPropagation, from::VariableNode, to::FactorNode
 end
 
 "Update hybrid belief propagation message from factor to its ith neighbor. Returns residual"
+update!(bp::HybridBeliefPropagation, from::FactorNode, to::VariableNode) = update!(bp,from,findfirst(isequal(to),from.neighbors))
 function update!(bp::HybridBeliefPropagation, from::FactorNode, to::Integer)
     ϕ = copy(from.factor)
     vto = from.neighbors[to] # destination variable
@@ -70,7 +71,8 @@ function update!(bp::HybridBeliefPropagation, from::FactorNode, to::Integer)
             # do sum-product update: ψ(y) = ∑_x ϕ(x,y) * μ(x)
             m = maximum(ϕ) + maximum(μ)
             for y in CartesianIndices(axes(ψ))
-                ψ[y] = m + log(sum(x -> exp(ϕ[x,y] + μ[x] - m), 1:dim))
+                # ψ[y] = m + log(sum(x -> exp(ϕ[x,y] + μ[x] - m), 1:dim))
+                ψ[y] = log(sum(x -> exp(ϕ[x,y] + μ[x] - m), 1:dim))
             end
         else # ne is MAP node
             if vto ∈ bp.mapvars # map to map 
@@ -80,13 +82,15 @@ function update!(bp::HybridBeliefPropagation, from::FactorNode, to::Integer)
                 end
             else
                 # do argmax-product update: ψ(y) =  ϕ(X,y) * μ(X) where X = argmax μ(x)*bp[from,ne](x)
-                m = maximum(ϕ) + maximum(μ)
-                μ_ne = μ .* bp[from,ne]
+                # m = maximum(ϕ) + maximum(μ)
+                μ_ne = μ .+ bp[from,ne]
                 # x = argmax(μ_ne)
                 mx = maximum(μ_ne)
                 X = findall(x -> isapprox(x,mx), μ_ne) # argmax_x μ_ne(x)
                 for y in CartesianIndices(axes(ψ))
-                    ψ[y] = m + log(sum(x -> exp(ϕ[x,y] + μ[x] - m), X))
+                    # ψ[y] = m + log(sum(x -> exp(ϕ[x,y] + μ[x] - m), X))
+                    # ψ[y] = log(sum(x -> exp(ϕ[x,y] + μ[x] - m), X))
+                    ψ[y] = log(sum(x -> exp(ϕ[x,y] + μ[x]), X))
                 end
             end
         end
@@ -100,8 +104,9 @@ function update!(bp::HybridBeliefPropagation, from::FactorNode, to::Integer)
         if ne ∉ bp.mapvars # ne is sum node 
             # do sum-product update: ψ(x) = ∑_y ϕ(x,y) * μ(y)
             m = maximum(ϕ) + maximum(μ)
-            for x in CartesianIndices(axes(ψ)), y = 1:dim
-                ψ[x] = m + log(sum(y -> exp(ϕ[x,y] + μ[y] - m),1:dim))
+            for x in CartesianIndices(axes(ψ))
+                # ψ[x] = m + log(sum(y -> exp(ϕ[x,y] + μ[y] - m), 1:dim))
+                ψ[x] = log(sum(y -> exp(ϕ[x,y] + μ[y] - m), 1:dim))
             end
         else # ne is MAP node
             if vto ∈ bp.mapvars # MAP to MAP
@@ -111,20 +116,21 @@ function update!(bp::HybridBeliefPropagation, from::FactorNode, to::Integer)
                 end
             else
                 # do argmax-product update: ψ(x) =  ϕ(x,Y) * μ(Y) where Y = argmax μ(y)*bp[from,ne](y)
-                m = maximum(ϕ) + maximum(μ)
-                μ_ne = μ .* bp[from,ne]
+                # m = maximum(ϕ) + maximum(μ)
+                μ_ne = μ .+ bp[from,ne]
                 # y = argmax(μ_ne)
                 my = maximum(μ_ne)
                 Y = findall(y -> isapprox(y,my), μ_ne) # argmax_y μ_ne(y)
                 for x in CartesianIndices(axes(ψ))
-                    ψ[x] = m + log(sum(y -> exp(ϕ[x,y] + μ[y] - m), Y))
+                    # ψ[x] = m + log(sum(y -> exp(ϕ[x,y] + μ[y] - m), Y))
+                    ψ[x] = log(sum(y -> exp(ϕ[x,y] + μ[y]), Y))
                 end
             end
         end
         ϕ = ψ
     end
     @assert length(ϕ) == vto.dimension "Got: $(length(ϕ)) Exp: $(vto.dimension)"
-    # normalize message (make sum equal to one)
+    # normalize message (make sum of finite terms equal to zero)
     # ϕ .-= sum(ϕ[isfinite.(ϕ)])/length(ϕ)
     # compute residual
     μ = bp.messages[from,vto]
