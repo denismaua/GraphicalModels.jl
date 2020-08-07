@@ -1,7 +1,7 @@
 # Test loading of factor graphs from data
 @testset "Loading factor graphs from file" begin
     @testset "Loading 3-variable factor graph from file" begin
-        import GraphicalModels: BeliefPropagation, update!, marginal
+        import GraphicalModels.MessagePassing: BeliefPropagation, update!, marginal
         # load simple model described in https://www.cs.huji.ac.il/project/UAI10/fileFormat.php
         fg = FactorGraph(normpath("$(@__DIR__)/markov.uai"))
         # now test if marginals are correctly computed by belief propagation
@@ -18,7 +18,7 @@
         end
     end
     @testset "Loading more complex model from file" begin
-        import GraphicalModels: BeliefPropagation, update!, marginal, setevidence!, reset!
+        import GraphicalModels.MessagePassing: BeliefPropagation, update!, marginal, setevidence!, reset!
         # load cyclic model
         fg = FactorGraph(normpath("$(@__DIR__)/example.uai"))  
         @test length(fg.variables) == 17

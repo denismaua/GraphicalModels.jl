@@ -2,5 +2,12 @@ using GraphicalModels
 import GraphicalModels: VariableNode, FactorNode, FactorGraph
 using Test
 
-include("testloadfg.jl")
-# include("testspbp.jl")
+@testset "Inference" begin
+    # include("testspbp.jl")
+    include("testhbp.jl")
+end
+
+@testset "I/O" begin
+    # include("testloadfg.jl")
+end
+

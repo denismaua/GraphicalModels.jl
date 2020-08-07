@@ -1,6 +1,5 @@
 # Sum-Product Belief Propagation for Marginal and LogPartition Computation
  
-abstract type MessagePassingAlgorithm end
 "Data structure for sum-product belief propagation algorithm."
 mutable struct BeliefPropagation <: MessagePassingAlgorithm
     fg::FactorGraph
@@ -22,23 +21,6 @@ mutable struct BeliefPropagation <: MessagePassingAlgorithm
         end        
         new(fg, 0, 1.0, μ, Dict{VariableNode,UInt}())
     end
-end
-
-Base.getindex(bp::BeliefPropagation, from::FGNode, to::FGNode) = Base.getindex(bp.messages, (from,to))
-Base.setindex!(bp::BeliefPropagation, μ, from::FGNode, to::FGNode) = Base.setindex!(bp.messages, μ, (from,to))
-
-"Set evidence value on variable identified by id."
-setevidence!(bp::BeliefPropagation, id::String, value) = bp.evidence[bp.fg.variables[id]] = value
-"Removes evidence from variable identified by id."
-rmevidence!(bp::BeliefPropagation, id::String) = delete!(bp.evidence,id)
-
-"Removes any evidence and resets messages to their initial values (equal to zero for log-domain)."
-function reset!(bp::BeliefPropagation) 
-    empty!(bp.evidence)
-    for μ in values(bp.messages)
-        fill!(μ, 0.0)
-    end
-    nothing
 end
 
 "Update belief propagation message from variable to factor node. Returns residual."
@@ -91,11 +73,12 @@ function update!(bp::BeliefPropagation, from::FactorNode, to::Integer)
         m = maximum(ϕ) + maximum(μ)
         dim = popfirst!(dims)
         # sum-product: ψ(y) = ∑x ϕ(x,y) * μ(x)
-        ψ = zeros(dims...)
-        for x = 1:dim, y in CartesianIndices(axes(ψ))
-            ψ[y] += exp(ϕ[x,y] + μ[x] - m)
+        ψ = Array{Float64}(undef,dims...)
+        for y in CartesianIndices(axes(ψ)) #, x = 1:dim
+            ψ[y] = m + log(sum(x -> exp(ϕ[x,y] + μ[x] - m), 1:dim))
         end
-        ϕ = m .+ log.(ψ)
+        ϕ = ψ
+        # ϕ = m .+ log.(ψ)
     end
     for i = length(from.neighbors):-1:(to+1) # eliminate from rightmost up to to (not included)
         ne = from.neighbors[i]      # i-th neighbor node
@@ -103,11 +86,11 @@ function update!(bp::BeliefPropagation, from::FactorNode, to::Integer)
         m = maximum(ϕ) + maximum(μ)
         dim = pop!(dims)
         # sum-product: ψ(x) = ∑y ϕ(x,y) * μ(y)
-        ψ = zeros(dims...)
-        for x in CartesianIndices(axes(ψ)), y = 1:dim
-            ψ[x] += exp(ϕ[x,y] + μ[y] - m)
+        ψ = Array{Float64}(undef,dims...)
+        for x in CartesianIndices(axes(ψ)) #, y = 1:dim
+            ψ[x] = m + log(sum(y -> exp(ϕ[x,y] + μ[y] - m), 1:dim))
         end
-        ϕ = m .+ log.(ψ)
+        ϕ = ψ #  m .+ log.(ψ)
     end
     @assert length(ϕ) == from.neighbors[to].dimension "Got: $(length(ϕ)) Exp: $(from.neighbors[to].dimension)"
     # normalize message (make sum equal to one)
@@ -141,51 +124,6 @@ function update!(bp::BeliefPropagation, from::FactorNode, to::Integer)
     #     # # μ[x[to]] += from.factor[x] * mapreduce( pair -> pair[1] == to ? 1.0 : bp.messages[pair[2],from][x[pair[1]]], *, enumerate(from.neighbors))
     # end    
     # μ
-end
-
-"Compute belief propagation messages for each edge in factor graph."
-function update!(bp::BeliefPropagation)
-    # synchronous belief propagation
-    # ## compute messages from factor to variable
-    # res = 0.0 # residual
-    # for f in bp.fg.factors, i in eachindex(f.neighbors)
-    #     res = max(res,update!(bp,f,i))
-    # end
-    # ## compute messages from factors to variables
-    # for v in bp.fg.variables, f in v.neighbors
-    #     res = max(res,update!(bp,v,f))
-    # end
-    # Asynchronous belief propagation
-    # Assumes graph is connected (will fail otherwise)
-    root = Random.rand(collect(values(bp.fg.variables))) # select root variable node at random
-    # update messages "away" from this node
-    # frontier = FGNode[root] #uncomment for depth-first traversal
-    frontier = Set{FGNode}()
-    push!(frontier,root)
-    visited = Set{FGNode}()
-    res = 0.0 # residual
-    while !isempty(frontier)
-        node = pop!(frontier)
-        push!(visited, node)
-        if isa(node,VariableNode)
-            for f in node.neighbors
-                res = max(res,update!(bp,node,f))
-                if !(f in visited) && !(f in frontier)
-                    push!(frontier, f)
-                end
-            end
-        else
-            for (i,v) in enumerate(node.neighbors)
-                res = max(res,update!(bp,node,i))
-                if !(v in visited) && !(v in frontier)
-                    push!(frontier, v)
-                end
-            end
-        end
-    end    
-    @assert length(visited) == length(bp.fg.variables) + length(bp.fg.factors)            
-    bp.iterations += 1
-    res
 end
 
 "Compute marginal distribution of given variable node from belief propagation messages."

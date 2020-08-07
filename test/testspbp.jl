@@ -1,5 +1,5 @@
 @testset "BeliefPropagation" begin
-    import GraphicalModels: BeliefPropagation, update!, marginal
+    import GraphicalModels.MessagePassing: BeliefPropagation, update!, marginal
     @testset "Exact Inference in Bayesian Trees" begin
         # Tree-shaped factor graph
         x4 = VariableNode(2)
@@ -15,15 +15,12 @@
             Dict( "X1" => x1, "X2" => x2, "X3" => x3, "X4" => x4 ),
             Dict( "P(X1|X3)" => f1, "P(X2|X3)" => f2, "P(X3|X4)" => f3, "P(X4)" => f4 )
         )
-        # Initialize belief progation messages
+        # Initialize belief propagation algorithm
         bp = BeliefPropagation(fg)    
         # Run belief propagation for until convergence
         while update!(bp) > 1e-10 end
         @info "converged in $(bp.iterations) iterations."
         @test bp.iterations < 10
-        # for x in (x1,x2,x3,x4)
-        #     println(x.variable, " ", marginal(x,bp))
-        # end
         # check marginals
         marginals = Dict(
             x1 => [0.48, 0.52],
@@ -36,7 +33,7 @@
         end
     end # end of Bayesian Tree testset
     @testset "Exact Inference in Bayes Tree with evidence" begin
-        import GraphicalModels: setevidence!
+        import GraphicalModels.MessagePassing: setevidence!
         # Tree-shaped factor graph
         x4 = VariableNode(2)
         x3 = VariableNode(2)
@@ -51,7 +48,7 @@
             Dict( "X1" => x1, "X2" => x2, "X3" => x3, "X4" => x4 ),
             Dict( "P(X1|X3)" => f1, "P(X2|X3)" => f2, "P(X3|X4)" => f3, "P(X4)" => f4 )
         )
-        # Initialize belief progation messages
+        # Initialize belief propagation
         bp = BeliefPropagation(fg)  
         # Set some evidence
         setevidence!(bp,"X1",1)
@@ -86,7 +83,7 @@
         f34 = FactorNode(log.([0.5 20.0; 1.0 2.5]), VariableNode[x3, x4]) # phi(X3,X4)
         # Creates factor graph (adds neighbor links to variables)
         fg = FactorGraph([x1,x2,x3,x4],[f12,f1,f3,f24,f34])
-        # Initialize belief progation messages
+        # Initialize belief propagation
         bp = BeliefPropagation(fg)    
         # Run BP until converegence
         while (update!(bp) > 1e-10) end
@@ -114,7 +111,7 @@
         f34 = FactorNode(log.([0.5 20; 1 2.5]), VariableNode[x3, x4]) # phi(X3,X4)
         # Creates factor graph (adds neighbor links to variables)
         fg = FactorGraph([x1,x2,x3,x4],[f12,f13,f24,f34])
-        # Initialize belief progation messages
+        # Initialize belief propagation
         bp = BeliefPropagation(fg)    
         # Run belief propagation for succificient number of iterations
         while (update!(bp) > 1e-10 && bp.iterations < 10) nothing end
@@ -148,9 +145,9 @@
             x3 => [0.4699342689875072, 0.5300657310124928],
             x4 => [0.1207170299513878, 0.8792829700486121]
         )    
-        # Initialize belief progation messages
+        # Initialize belief propagation
         bp = BeliefPropagation(fg)    
-        # Run belief propagation for succificient number of iterations
+        # Run belief propagation until convergence or max. num. iterations is reached
         res = 0.0
         for i=1:100
             res = update!(bp)
