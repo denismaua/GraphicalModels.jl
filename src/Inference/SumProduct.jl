@@ -5,6 +5,7 @@ mutable struct BeliefPropagation <: MessagePassingAlgorithm
     fg::FactorGraph
     iterations::Int
     λ::Float64 # dampening factor ∈ [0,1]
+    normalize::Bool # normalize messages?
     messages::Dict{Tuple{FGNode,FGNode},AbstractVector}
     evidence::Dict{VariableNode,UInt}
     "Initialize belief propagation with no evidence."
@@ -19,7 +20,7 @@ mutable struct BeliefPropagation <: MessagePassingAlgorithm
             # μ[f,v] = ones(length(v.variable)) # linear domain
             μ[f,v] = zeros(v.dimension) # log domain
         end        
-        new(fg, 0, 1.0, μ, Dict{VariableNode,UInt}())
+        new(fg, 0, 1.0, false, μ, Dict{VariableNode,UInt}())
     end
 end
 
@@ -95,8 +96,10 @@ function update!(bp::BeliefPropagation, from::FactorNode, to::Integer)
         ϕ = ψ 
     end
     @assert length(ϕ) == from.neighbors[to].dimension "Got: $(length(ϕ)) Exp: $(from.neighbors[to].dimension)"
-    # normalize message (make sum of finite terms equal to zero)
-    # ϕ .-= sum(ϕ[isfinite.(ϕ)])/length(ϕ)
+    if bp.normalize # normalize message (make sum equal to one in linear domain)
+        # ϕ .-= sum(ϕ[isfinite.(ϕ)])/length(ϕ)
+        ϕ .-= log(mapreduce(exp,+,ϕ))
+    end
     # compute residual
     # res = maximum(abs.(bp[from,from.neighbors[to]].-ϕ)) # is this slow?
     μ = bp.messages[from,from.neighbors[to]]
@@ -128,9 +131,14 @@ function update!(bp::BeliefPropagation, from::FactorNode, to::Integer)
     # μ
 end
 
-"Compute marginal distribution of given variable node from belief propagation messages."
-marginal(id::String, bp::BeliefPropagation) = marginal(bp.fg.variables[id], bp)
-function marginal(var::VariableNode, bp::BeliefPropagation)
+"""
+    marginal(bp::BeliefPropagation, id::String)
+    marginal(bp::BeliefPropagation, var::VariableNode)
+
+Compute marginal distribution of given variable node from belief propagation messages.
+"""
+marginal(bp::BeliefPropagation, id::String) = marginal(bp, bp.fg.variables[id])
+function marginal(bp::BeliefPropagation, var::VariableNode)
     # marginal = ones(length(var.variable)) # linear domain
     marginal = zeros(var.dimension) # log domain
     if haskey(bp.evidence, var)

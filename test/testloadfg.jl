@@ -14,7 +14,7 @@
             "2" => [0.465612512, 0.191371104, 0.343016384]
         )
         @testset "Checking marginal for $i" for (i,x) in fg.variables
-            @test marginals[i] ≈ marginal(x,bp)
+            @test marginals[i] ≈ marginal(bp,x)
         end
     end
     @testset "Loading more complex model from file" begin
@@ -27,10 +27,10 @@
         setevidence!(bp,"0",1)
         setevidence!(bp,"1",1)
         while update!(bp) > 1e-10 && bp.iterations < 30 
-            # @info marginal("16",bp)
+            # @info marginal(bp,"16")
         end
         # @info "finished in $(bp.iterations) iterations."
-        @test marginal("16",bp) ≈ [0.7, 0.3]
+        @test marginal(bp,"16") ≈ [0.7, 0.3]
         reset!(bp)
         setevidence!(bp,"0",2)
         setevidence!(bp,"1",1)
@@ -38,5 +38,5 @@
             # @info marginal("16",bp)
         end
         # @info "finished in $(bp.iterations) iterations."
-        @test marginal("16",bp) ≈ [0.6, 0.4]    end
+        @test marginal(bp,"16") ≈ [0.6, 0.4]    end
 end

@@ -29,7 +29,7 @@
             x4 => [0.6, 0.4]
             )
         @testset "Checking marginal for $i" for (i,x) in fg.variables
-            @test marginals[x] ≈ marginal(x,bp)
+            @test marginals[x] ≈ marginal(bp,x)
         end
     end # end of Bayesian Tree testset
     @testset "Exact Inference in Bayes Tree with evidence" begin
@@ -67,8 +67,7 @@
             x4 => [0.721875, 0.278125]
         )        
         @testset "Checking marginal for $i" for (i,x) in fg.variables
-            @test marginals[x] ≈ marginal(x,bp)
-            # println( "P($i) = $(marginal(x,bp))" )
+            @test marginals[x] ≈ marginal(bp,x)
         end
     end
     @testset "Exact Inference in Markov Trees" begin
@@ -97,7 +96,7 @@
             x4 => [0.4260745375408052, 0.5739254624591947]
         )
         @testset "Checking marginal of $(i)" for (i,x) in fg.variables
-            @test marginals[x] ≈ marginal(x,bp)
+            @test marginals[x] ≈ marginal(bp,x)
         end
     end # end of Markov tree testset
     @testset "Exact Inference in Tree-Decomposable Loopy Graph" begin
@@ -124,9 +123,39 @@
             x4 => [0.4260745375408052, 0.5739254624591947]
         )    
         @testset "Checking marginal for $(i)" for (i,x) in fg.variables
-            @test marginals[x] ≈ marginal(x,bp)
+            @test marginals[x] ≈ marginal(bp,x)
         end    
     end # end of testset Easy Loopy
+    @testset "Exact Inference in Tree-Decomposable Loopy Graph and normalization" begin
+        # same test, but normalizing messages
+        x1 = VariableNode(2)
+        x2 = VariableNode(2)
+        x3 = VariableNode(2)
+        x4 = VariableNode(2)
+        f12 = FactorNode(log.([10 0.1; 0.1 10]), VariableNode[x1, x2]) # phi(X1,X2)
+        f13 = FactorNode(log.([5 5; 0.2 0.2]), VariableNode[x1, x3]) # phi(X1,X3) = phi(X1)*phi(X3) of previous test
+        f24 = FactorNode(log.([5 0.2; 0.2 5]), VariableNode[x2, x4]) # phi(X2,X4)
+        f34 = FactorNode(log.([0.5 20; 1 2.5]), VariableNode[x3, x4]) # phi(X3,X4)
+        # Creates factor graph (adds neighbor links to variables)
+        fg = FactorGraph([x1,x2,x3,x4],[f12,f13,f24,f34])
+        # Initialize belief propagation
+        bp = BeliefPropagation(fg)
+        # use normalization
+        bp.normalize = true  
+        # Run belief propagation for succificient number of iterations
+        while (update!(bp) > 1e-10 && bp.iterations < 100) nothing end
+        @info "converged in $(bp.iterations) iterations."
+        # check marginals
+        marginals = Dict(
+            x1 => [0.7440152339499456, 0.25598476605005444],
+            x2 => [0.6803590859630033, 0.3196409140369967],
+            x3 => [0.6521808124773303, 0.34781918752266955],
+            x4 => [0.4260745375408052, 0.5739254624591947]
+        )    
+        @testset "Checking marginal for $(i)" for (i,x) in fg.variables
+            @test marginals[x] ≈ marginal(bp,x)
+        end    
+    end # end of testset Easy Loopy    
     @testset "Approximate Inference in Tree-Decomposable Loopy Graph" begin
         x1 = VariableNode(2)
         x2 = VariableNode(2)
@@ -154,28 +183,28 @@
             # compute mean absolute error
             mae = 0.0
             for x in values(fg.variables)
-                mae += mapreduce(abs,+,marginal(x,bp) .- marginals[x])/2                
+                mae += mapreduce(abs,+,marginal(bp,x) .- marginals[x])/2                
             end
             mae = mae/4
-            computed = marginal(x1,bp)[1]
+            computed = marginal(bp,x1)[1]
             expected = marginals[x1][1]
-            @info "iteration: $(bp.iterations) \t residual: $(round(res;digits=6)) \t MAE: $(round(mae;digits=6)) \t P(X1=1): $(round(computed;digits=3)) [Error: $(computed-expected)]" maxlog=20
+            @debug "iteration: $(bp.iterations) \t residual: $(round(res;digits=6)) \t MAE: $(round(mae;digits=6)) \t P(X1=1): $(round(computed;digits=3)) [Error: $(computed-expected)]" maxlog=20
             if res < 1e-8 break end
             bp.λ *= 0.99 # exponential decay (damping)
         end
         # MAE should be small
         mae = 0.0
         for x in values(fg.variables)
-            mae += mapreduce(abs,+,marginal(x,bp) .- marginals[x])/2
+            mae += mapreduce(abs,+,marginal(bp,x) .- marginals[x])/2
         end
         mae = mae/4
-        computed = marginal(x1,bp)[1]
+        computed = marginal(bp,x1)[1]
         expected = marginals[x1][1]
         @info "iteration: $(bp.iterations) \t residual: $(round(res;digits=6)) \t MAE: $(round(mae;digits=6)) \t P(X1=1): $(round(computed;digits=3)) [Error: $(computed-expected)]" 
         @test mae < 0.15
         # check marginals
         # @testset "Checking marginal for $(X.variable)" for (X,m) in marginals
-        #     @test m ≈ marginal(X,bp)
+        #     @test m ≈ marginal(bp,X)
         # end    
         # log partition
         # Z = 1224.384

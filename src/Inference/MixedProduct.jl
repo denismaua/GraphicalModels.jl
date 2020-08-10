@@ -6,26 +6,45 @@ mutable struct HybridBeliefPropagation <: MessagePassingAlgorithm
     fg::FactorGraph
     iterations::Int
     λ::Float64 # dampening factor ∈ [0,1]
+    normalize::Bool # normalize messages?
     messages::Dict{Tuple{FGNode,FGNode},AbstractVector}
     evidence::Dict{VariableNode,UInt}
     mapvars::Set{VariableNode}
-    "Initialize belief propagation with no evidence."
-    function HybridBeliefPropagation(fg::FactorGraph) 
+    "Initialize belief propagation with noninformative messages; set rndinit = true to use random initialization."
+    function HybridBeliefPropagation(fg::FactorGraph; rndinit=false) 
         # initialize messages as vectos of ones
         μ = Dict{Tuple{FGNode,FGNode},AbstractVector}()
         for v in values(fg.variables), f in v.neighbors
             # μ[v,f] = ones(length(v.variable)) # linear domain
-            μ[v,f] = zeros(v.dimension) # log domain
+            if rndinit
+                μ[v,f] = rand(v.dimension)
+            else
+                μ[v,f] = zeros(v.dimension) # log domain
+            end
         end
         for f in values(fg.factors), v in f.neighbors
             # μ[f,v] = ones(length(v.variable)) # linear domain
-            μ[f,v] = zeros(v.dimension) # log domain
+            if rndinit
+                μ[f,v] = rand(v.dimension)
+            else
+                μ[f,v] = zeros(v.dimension) # log domain
+            end
         end        
-        new(fg, 0, 1.0, μ, Dict{VariableNode,UInt}(), Set{VariableNode}())
+        new(fg, 0, 1.0, false, μ, Dict{VariableNode,UInt}(), Set{VariableNode}())
     end
 end
 
-"Update hybrid belief propagation message from variable to factor node. Returns residual."
+"""
+    setmapvar!(mp::MessagePassingAlgorithm, id::String)
+
+Assign variable with given `id` to be maximized.
+"""
+setmapvar!(bp::HybridBeliefPropagation, id::String) = push!(bp.mapvars, bp.fg.variables[id])
+"Removes evidence from variable identified by `id`."
+unsetmapvar!(bp::HybridBeliefPropagation, id::String) = delete!(mp.evidence, bp.fg.variables[id])
+
+
+"Update hybrid belief propagation message `from` variable `to` factor node. Returns residual."
 function update!(bp::HybridBeliefPropagation, from::VariableNode, to::FactorNode)
     if haskey(bp.evidence,from) # variable is clamped, send indicator function
         e = bp.evidence[from]
@@ -86,7 +105,7 @@ function update!(bp::HybridBeliefPropagation, from::FactorNode, to::Integer)
                 μ_ne = μ .+ bp[from,ne]
                 # x = argmax(μ_ne)
                 mx = maximum(μ_ne)
-                X = findall(x -> isapprox(x,mx), μ_ne) # argmax_x μ_ne(x)
+                X = findall(m -> isapprox(m,mx), μ_ne) # argmax_x μ_ne(x)
                 for y in CartesianIndices(axes(ψ))
                     # ψ[y] = m + log(sum(x -> exp(ϕ[x,y] + μ[x] - m), X))
                     # ψ[y] = log(sum(x -> exp(ϕ[x,y] + μ[x] - m), X))
@@ -130,10 +149,14 @@ function update!(bp::HybridBeliefPropagation, from::FactorNode, to::Integer)
         ϕ = ψ
     end
     @assert length(ϕ) == vto.dimension "Got: $(length(ϕ)) Exp: $(vto.dimension)"
-    # normalize message (make sum of finite terms equal to zero)
-    # ϕ .-= sum(ϕ[isfinite.(ϕ)])/length(ϕ)
+    if bp.normalize # normalize message (make sum equal to one in linear domain)
+        # ϕ .-= sum(ϕ[isfinite.(ϕ)])/length(ϕ)
+        ϕ .-= maximum(ϕ)
+        ϕ .-= log(mapreduce(exp,+,ϕ))
+    end
     # compute residual
     μ = bp.messages[from,vto]
+    @assert length(ϕ) == length(μ)
     res = 0.0
     for i=1:length(μ)
         if isfinite(μ[i]) && isfinite(ϕ[i])
@@ -143,15 +166,25 @@ function update!(bp::HybridBeliefPropagation, from::FactorNode, to::Integer)
         end
     end
     if bp.λ < 1 # damped update
-        @. ϕ = bp.λ*ϕ + (1.0-bp.λ)*μ
+        for i=1:length(ϕ) # prevents resulting with -Inf messages
+            if isfinite(μ[i]) && isfinite(ϕ[i])
+                ϕ[i] = bp.λ * ϕ[i] + (1.0-bp.λ) * μ[i]
+            end            
+        end
     end
+    @assert count(isfinite.(ϕ)) > 0 "Not finite: $ϕ"
     μ .= ϕ
     res
 end
 
-"Compute marginal distribution of given variable node from hybrid belief propagation messages."
-marginal(id::String, bp::HybridBeliefPropagation) = marginal(bp.fg.variables[id], bp)
-function marginal(var::VariableNode, bp::HybridBeliefPropagation)
+"""
+    marginal(bp::HybridBeliefPropagation, id::String)
+    marginal(bp::HybridBeliefPropagation, var::VariableNode)
+
+Compute marginal distribution of given variable node from hybrid belief propagation messages.
+"""
+marginal(bp::HybridBeliefPropagation, id::String) = marginal(bp, bp.fg.variables[id])
+function marginal(bp::HybridBeliefPropagation, var::VariableNode)
     marginal = zeros(var.dimension) # log domain
     if haskey(bp.evidence, var)
         marginal[bp.evidence[var]] = 1.0
@@ -167,9 +200,14 @@ function marginal(var::VariableNode, bp::HybridBeliefPropagation)
     marginal ./= sum(marginal)
 end
 
-"Compute maximizing value for local belief."
-decode(id::String, bp::HybridBeliefPropagation) = decode(bp.fg.variables[id], bp)
-function decode(var::VariableNode, bp::HybridBeliefPropagation)
+"""
+    decode(bp::HybridBeliefPropagation, id::String)
+    decode(bp::HybridBeliefPropagation, var::VariableNode)
+
+Compute maximizing value for marginal belief of given variable.
+"""
+decode(bp::HybridBeliefPropagation, id::String) = decode(bp, bp.fg.variables[id])
+function decode(bp::HybridBeliefPropagation, var::VariableNode)
     if haskey(bp.evidence, var)
         return bp.evidence[var]
     end     

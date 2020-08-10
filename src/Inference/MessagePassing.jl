@@ -13,13 +13,17 @@ MessagePassing
 
 abstract type MessagePassingAlgorithm end
 # Getter/Setters for messages 
-"Get message for edge (from,to)."
+"Get message for edge (`from`,`to`)."
 Base.getindex(mp::MessagePassingAlgorithm, from::FGNode, to::FGNode) = Base.getindex(mp.messages, (from,to))
-"Set message for edge (from,to)."
+"Set message for edge (`from`,`to`)."
 Base.setindex!(mp::MessagePassingAlgorithm, μ, from::FGNode, to::FGNode) = Base.setindex!(mp.messages, μ, (from,to))
-"Set evidence value on variable identified by id."
+"""
+    setevidence!(mp::MessagePassingAlgorithm, id::String, value)
+
+Set evidence value on variable identified by `id`.
+"""
 setevidence!(mp::MessagePassingAlgorithm, id::String, value) = mp.evidence[mp.fg.variables[id]] = value
-"Removes evidence from variable identified by id."
+"Removes evidence from variable identified by `id`."
 rmevidence!(mp::MessagePassingAlgorithm, id::String) = delete!(mp.evidence,id)
 "Removes any evidence and resets messages to their initial values (equal to zero for log-domain)."
 function reset!(mp::MessagePassingAlgorithm) 
@@ -30,7 +34,11 @@ function reset!(mp::MessagePassingAlgorithm)
     nothing
 end
 
-"Compute for each edge in factor graph using random flooding scheduling. Returns maximum residual (absolute change in some message)."
+"""
+    update!(bp::MessagePassingAlgorithm)
+
+Compute for each edge in factor graph using random flooding scheduling. Returns maximum residual (absolute change in some message).
+"""
 function update!(bp::MessagePassingAlgorithm)
     # synchronous belief propagation
     # ## compute messages from factor to variable
