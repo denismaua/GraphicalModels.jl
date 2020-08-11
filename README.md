@@ -4,7 +4,11 @@
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://denismaua.github.io/GraphicalModels.jl/dev)
 [![Build Status](https://github.com/denismaua/GraphicalModels.jl/workflows/CI/badge.svg)](https://github.com/denismaua/GraphicalModels.jl/actions)
 
-This package is a lightweight implementation of Probabilistic Graphical Models algorithms, built for didatical purposes.
+This package is a lightweight implementation of Probabilistic Graphical Models algorithms in [Julia](https://julialang.org), built for didatic purposes.
+
+## Features
+
+Currently, it handles manipulation of Factor Graphs (using the API or loading from file in UAI Competition format), and approximate inference through belief propagation (marginal, max-marginal and mixed-marginal inferences).
 
 ## Instalation
 
