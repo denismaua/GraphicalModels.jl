@@ -25,11 +25,19 @@ Set evidence value on variable identified by `id`.
 setevidence!(mp::MessagePassingAlgorithm, id::String, value) = mp.evidence[mp.fg.variables[id]] = value
 "Removes evidence from variable identified by `id`."
 rmevidence!(mp::MessagePassingAlgorithm, id::String) = delete!(mp.evidence,id)
-"Removes any evidence and resets messages to their initial values (equal to zero for log-domain)."
-function reset!(mp::MessagePassingAlgorithm) 
+"""
+    reset!(mp::MessagePassingAlgorithm; rndinit=false)
+
+Removes any evidence and resets messages to their initial values (all zero if `rndinit=true`, random otherwise).
+"""
+function reset!(mp::MessagePassingAlgorithm; rndinit=false) 
     empty!(mp.evidence)
     for μ in values(mp.messages)
-        fill!(μ, 0.0)
+        if rndinit
+            μ .= log.(rand(length(μ)))
+        else
+            fill!(μ, 0.0)
+        end
     end
     nothing
 end

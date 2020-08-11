@@ -17,7 +17,7 @@ mutable struct HybridBeliefPropagation <: MessagePassingAlgorithm
         for v in values(fg.variables), f in v.neighbors
             # μ[v,f] = ones(length(v.variable)) # linear domain
             if rndinit
-                μ[v,f] = rand(v.dimension)
+                μ[v,f] = 0.1*randn(v.dimension)
             else
                 μ[v,f] = zeros(v.dimension) # log domain
             end
@@ -25,7 +25,7 @@ mutable struct HybridBeliefPropagation <: MessagePassingAlgorithm
         for f in values(fg.factors), v in f.neighbors
             # μ[f,v] = ones(length(v.variable)) # linear domain
             if rndinit
-                μ[f,v] = rand(v.dimension)
+                μ[f,v] = 0.1*randn(v.dimension)
             else
                 μ[f,v] = zeros(v.dimension) # log domain
             end
