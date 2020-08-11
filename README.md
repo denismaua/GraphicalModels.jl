@@ -39,7 +39,7 @@ fg = FactorGraph(
 )
 ````
 
-For automatically specifying indices from positions:
+For automatically specifying node indices/keys by their positions:
 
 ```julia
 import GraphicalModels: VariableNode, FactorNode, FactorGraph
@@ -60,7 +60,7 @@ fg = FactorGraph(
 foreach(println, fg.variables) # show variables
 ````
 
-Loading factor graph from file (in UAI File Format):
+Loading factor graph from file (in [UAI 2010 Competition File Format](https://www.cs.huji.ac.il/project/UAI10/fileFormat.php)):
 
 ```julia
 # Load simple example in https://www.cs.huji.ac.il/project/UAI10/fileFormat.php
@@ -86,8 +86,8 @@ while True
 end
 @info "Converged in $(bp.iterations) iterations."
 # Now compute marginal for variable Y
-@show marginal("1", bp)
-# Alternatively, we can use marginal(fg.variables["1"], bp)
+@show marginal(bp, "1")
+# Alternatively, we can use marginal(bp, fg.variables["1"])
 ```
 
 Computing conditional marginal probabilities:
@@ -104,5 +104,5 @@ setevidence!(bp, "2", 2)
 while update!(bp) > 1e-10 end
 @info "converged in $(bp.iterations) iterations."
 # Now compute marginal for variable X
-@show marginal("0", bp)
+@show marginal(bp, "0")
 ```
