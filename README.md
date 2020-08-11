@@ -8,11 +8,9 @@ This package is a lightweight implementation of Probabilistic Graphical Models a
 
 ## Instalation
 
-TODO: Add to Github
-
 ```julia
 import Pkg
-Pkg.add("githib address")
+Pkg.add("https://github.com/denismaua/GraphicalModels.jl")
 ```
 
 ## Usage
@@ -69,7 +67,7 @@ foreach(println, fg.variables) # show variables
 Computing marginals by sum-product belief propagation:
 
 ```julia
-import GraphicalModels: BeliefPropagation, update!, marginal
+import GraphicalModels.MessagePassing: BeliefPropagation, update!, marginal
 # Load model from file
 fg = FactorGraph("test/markov.uai")
 # Initialize belief progation messages
@@ -91,7 +89,7 @@ end
 Computing conditional marginal probabilities:
 
 ```julia
-import GraphicalModels: BeliefPropagation, update!, marginal, setevidence!
+import GraphicalModels.MessagePassing: BeliefPropagation, update!, marginal, setevidence!
 # Load model from file
 fg = FactorGraph("test/markov.uai")
 # Initialize belief progation messages
