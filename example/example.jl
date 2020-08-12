@@ -15,6 +15,11 @@ query_filename = "$(@__DIR__)/nltcs.query"
 # evidence_filename = "/Users/denis/learned-spns/spambase/spambase.evid"
 # query_filename = "/Users/denis/learned-spns/spambase/spambase.query"
 
+# ionosphere
+# model_filename = "/Users/denis/learned-spns/ionosphere/ionosphere.uai"
+# evidence_filename = "/Users/denis/learned-spns/ionosphere/ionosphere.evid"
+# query_filename = "/Users/denis/learned-spns/ionosphere/ionosphere.query"
+
 # Mushrooms
 # model_filename = "/Users/denis/learned-spns/mushrooms/mushrooms.uai"
 # evidence_filename = "/Users/denis/learned-spns/mushrooms/mushrooms.evid"
@@ -27,7 +32,7 @@ query_filename = "$(@__DIR__)/nltcs.query"
 
 
 # load model from file
-fg = FactorGraph(model_filename)
+@time fg = FactorGraph(model_filename)
 println("Loaded: $(length(fg.variables)) variables, $(length(fg.factors)) factors.")
 # initialize messages 
 bp = HybridBeliefPropagation(fg; rndinit=true) # set rndinit=true for noninformative initalization (messages = constant)
