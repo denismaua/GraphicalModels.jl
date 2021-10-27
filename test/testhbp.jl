@@ -1,4 +1,4 @@
-@testset "BeliefPropagation" begin
+@testset "HybridBeliefPropagation" begin
     import GraphicalModels.MessagePassing: HybridBeliefPropagation, update!, setmapvar!, marginal, decode
     @testset "MaxProduct Inference in Bayes Tree" begin
         # Tree-shaped factor graph

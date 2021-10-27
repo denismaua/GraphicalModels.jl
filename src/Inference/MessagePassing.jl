@@ -95,5 +95,7 @@ end
 include("SumProduct.jl")
 # Max-Sum-Product Belief Propagation
 include("MixedProduct.jl")
+# Max-Sum Belief Propagation
+include("MaxSum.jl")
 
 end

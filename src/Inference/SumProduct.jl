@@ -1,16 +1,16 @@
-# Sum-Product Belief Propagation for Marginal and LogPartition Computation
+# Sum-Product Belief Propagation for Marginal and Log-Partition Computation
  
-"Data structure for sum-product belief propagation algorithm."
+"Data structure for the sum-product belief propagation algorithm."
 mutable struct BeliefPropagation <: MessagePassingAlgorithm
     fg::FactorGraph
     iterations::Int
-    λ::Float64 # dampening factor ∈ [0,1]
+    λ::Float64 # damping factor ∈ [0,1]; 0 means no damping
     normalize::Bool # normalize messages?
     messages::Dict{Tuple{FGNode,FGNode},AbstractVector}
     evidence::Dict{VariableNode,UInt}
     "Initialize belief propagation with no evidence."
     function BeliefPropagation(fg::FactorGraph) 
-        # initialize messages as vectos of ones
+        # initialize messages as vectos of zeros (= ones in linear scale)
         μ = Dict{Tuple{FGNode,FGNode},AbstractVector}()
         for v in values(fg.variables), f in v.neighbors
             # μ[v,f] = ones(length(v.variable)) # linear domain
@@ -20,13 +20,12 @@ mutable struct BeliefPropagation <: MessagePassingAlgorithm
             # μ[f,v] = ones(length(v.variable)) # linear domain
             μ[f,v] = zeros(v.dimension) # log domain
         end        
-        new(fg, 0, 1.0, false, μ, Dict{VariableNode,UInt}())
+        new(fg, 0, 0.0, false, μ, Dict{VariableNode,UInt}())
     end
 end
 
-"Update belief propagation message from variable to factor node. Returns residual."
+"Update belief propagation message from variable to factor node and return residual."
 function update!(bp::BeliefPropagation, from::VariableNode, to::FactorNode)
-    # fill!(μ,1.0) # linear domain
     if haskey(bp.evidence,from) # variable is clamped, send indicator function
         e = bp.evidence[from]
         μ = bp[from,to]
@@ -35,6 +34,7 @@ function update!(bp::BeliefPropagation, from::VariableNode, to::FactorNode)
         return 0.0
     end   
     μ = similar(bp[from,to])
+    # fill!(μ,1.0) # linear domain
     fill!(μ,0.0) # log domain
     # compute product of incoming messages
     for factor in from.neighbors
@@ -43,13 +43,14 @@ function update!(bp::BeliefPropagation, from::VariableNode, to::FactorNode)
             μ .+= bp[factor,from] # incoming message in log domain
         end
     end    
-    # # normalize message (make sum = 1)
-    # μ .-= sum(μ)/length(μ)
-    # compute residual (in log domain, should we compute it in linear domain?)
-    # res = mapreduce(i ->  abs(bp.messages[from,to][i] - μ[i]), max, 1:length(μ)) # is this faster?
-    # res = maximum(abs.(bp[from,to].-μ)) # is this slower?
-    res = 0.0
+    # We do not normalize these messages, as normalize messages sent from factors is computationally more efficient
     ϕ = bp[from,to]
+    if bp.λ > 0 # damped update
+        @. μ = bp.λ*ϕ + (1-bp.λ)*μ
+    end
+    # Compute residual (in log domain)
+    res = 0.0
+    # res = mapreduce(i ->  abs(bp.messages[from,to][i] - μ[i]), max, 1:length(μ)) # is this faster?
     for i=1:length(μ)
         if isfinite(μ[i]) && isfinite(ϕ[i])
             res = max(res, abs(μ[i]-ϕ[i]))
@@ -57,32 +58,33 @@ function update!(bp::BeliefPropagation, from::VariableNode, to::FactorNode)
             res = max(res, max(μ[i], ϕ[i]))
         end
     end
-    # damped update
-    # @. bp[from,to] = bp.λ*μ + (1.0-bp.λ)*bp[from,to]
+    # store updated message
     ϕ .= μ
     res
 end
 
-"Update belief propagation message from factor to its ith neighbor. Returns residual"
+"Update belief propagation message from factor to its i-th neighbor and return residual."
 function update!(bp::BeliefPropagation, from::FactorNode, to::Integer)
     ϕ = copy(from.factor)
     dims = [ dim for dim in size(ϕ) ]
-    # eliminate one neighbor at a time (do binary sum-product operations)
-    for i = 1:(to-1) # eliminate from left up to to (not included)
+    # Eliminate one neighbor variable at a time (do binary sum-product operations)
+    # First eliminate variables that appear before (to left) of variable `to` in the factor's scope
+    for i = 1:(to-1) 
         ne = from.neighbors[i]      # i-th neighbor node
         μ = bp[ne,from]             # incoming message
         m = maximum(ϕ) + maximum(μ)
         dim = popfirst!(dims)
         # sum-product: ψ(y) = ∑x ϕ(x,y) * μ(x)
         ψ = Array{Float64}(undef,dims...)
-        for y in CartesianIndices(axes(ψ)) #, x = 1:dim
+        for y in CartesianIndices(axes(ψ)) 
             # ψ[y] = m + log(sum(x -> exp(ϕ[x,y] + μ[x] - m), 1:dim))
             ψ[y] = log(sum(x -> exp(ϕ[x,y] + μ[x] - m), 1:dim)) # subtracting m acts as normlizing constant
         end
         ϕ = ψ
         # ϕ = m .+ log.(ψ)
     end
-    for i = length(from.neighbors):-1:(to+1) # eliminate from rightmost up to to (not included)
+    # Then eliminate variable that appear to the right of `to` variable
+    for i = length(from.neighbors):-1:(to+1) 
         ne = from.neighbors[i]      # i-th neighbor node
         μ = bp.messages[ne,from]    # incoming message
         m = maximum(ϕ) + maximum(μ)
@@ -110,9 +112,6 @@ function update!(bp::BeliefPropagation, from::FactorNode, to::Integer)
         else
             res = max(res, max(μ[i], ϕ[i]))
         end
-    end
-    if bp.λ < 1 # damped update
-        @. ϕ = bp.λ*ϕ + (1.0-bp.λ)*μ
     end
     #ϕ[isnan.(ϕ)] .= -Inf
     # @assert sum(isnan.(ϕ)) == 0
